@@ -7,7 +7,7 @@ easy to read and extend.
 
 ```
 ./anthos-lab.sh help
-USAGE: ./anthos-lab.sh [deploy|cleanup|redeploy]
+USAGE: ./anthos-lab.sh [cleanup|cleanupfs|cleanupgcp|deploy|redeploy]
 
 ```
 
@@ -69,6 +69,12 @@ corporate Chromebook or a corporate Macbook.
 
 * cleanup - this removes all filesystem artifacts and also all GCP artifacts
   that were created by a `deploy` command.
+
+* cleanupfs - removes all filesystem artifacts, but doesn't make any changes to
+  your GCP workloads.
+
+* cleanupgcp - removes all related GCP workloads, but leaves the files on your
+  filesystem untouched.
 
 * redeploy - this cleans up old clusters and redploys them as fresh instances.
   This is useful if you get something too far off line to repair.

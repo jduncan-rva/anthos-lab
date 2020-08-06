@@ -197,8 +197,18 @@ case $ACTION in
     deploy
   ;;
 
+  cleanupfs)
+    prep
+    cleanup_filesystem
+  ;;
+
+  cleanupgcp)
+    prep
+    cleanup_gcp
+  ;;
+
   *)
-    echo "USAGE: $0 [deploy|cleanup|redeploy]"
+    echo "USAGE: $0 [cleanup|cleanupfs|cleanupgcp|deploy|redeploy]"
   ;;
 
 esac
