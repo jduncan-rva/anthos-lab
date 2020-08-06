@@ -15,6 +15,7 @@ function prep {
   PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
   WORKLOAD_POOL=$PROJECT.svc.id.goog
   MESH_ID="proj-$PROJECT_NUMBER"
+  REPO_DIR=anthos-lab-acm 
 
   # set gcloud variables
   echo "Setting gcloud information"
@@ -65,6 +66,28 @@ EOF
   istioctl install -f asm/cluster/istio-operator.yaml
 }
 
+function deploy_repo {
+  echo "Creating Cloud Source Repository"
+  git config --global credential.'https://source.developers.google.com'.helper gcloud.sh
+  gcloud source repos create $REPO_DIR 
+  gcloud source repos clone $REPO_DIR 
+}
+
+function deploy_acm {
+  echo "Configuring cluster for Anthos Configuration Management"
+  gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
+  cp addons/acm/config-management.yaml ./config-management-$cluster.yaml 
+  sed -i 's/CLUSTER/'"$cluster"'/' config-management-$cluster.yaml
+  sed -i 's/PROJECT/'"$PROJECT"'/' config-management-$cluster.yaml
+  sed -i 's/REPO_DIR/'"$REPO_DIR"'/' config-management-$cluster.yaml
+  kubectl apply -f config-management-operator-$cluster.yaml
+  echo "Installing nomos"
+  gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos nomos
+  chmod +x ./nomos
+  echo "Initializing $REPO_DIR as ACM repository"
+  ./nomos init --path=$REPO_DIR 
+}
+
 function install_addons {
   if "$DEPLOY_ASM"; then
     deploy_asm
@@ -93,7 +116,8 @@ function deploy {
   sudo apt-get install \
     google-cloud-sdk \
     google-cloud-sdk-kpt \
-    kubectl
+    kubectl \
+    git
 
   for cluster in ${CLUSTERS[@]}
   do
@@ -137,15 +161,19 @@ function cleanup_filesystem {
   rm -rf asm
   rm -rf istio*
   rm -f *-sa.json
+  rm -f config-management-*.yaml
+  rm -f nomos 
+  rm -rf $REPO_DIR 
 }
 
 function cleanup_gcp {
   for cluster in ${CLUSTERS[@]}
-  do
-  echo "Cleaning up cluster $cluster"
-  gcloud iam service-accounts delete $cluster-sa@$PROJECT.iam.gserviceaccount.com -q
-  gcloud container hub memberships delete $cluster -q
-  gcloud container clusters delete $cluster -q
+    do
+    echo "Cleaning up cluster $cluster"
+    gcloud iam service-accounts delete $cluster-sa@$PROJECT.iam.gserviceaccount.com -q
+    gcloud container hub memberships delete $cluster -q
+    gcloud container clusters delete $cluster -q
+    gcloud source repos delete $REPO_DIR -q
   done
 }
 

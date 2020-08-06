@@ -1,3 +1,5 @@
 *-sa.json
 asm/
 istio*
+config-management-operator.yaml
+nomos

@@ -1,0 +1,13 @@
+# config-management.yaml
+
+apiVersion: configmanagement.gke.io/v1
+kind: ConfigManagement
+metadata:
+  name: config-management
+spec:
+  # clusterName is required and must be unique among all managed clusters
+  clusterName: CLUSTER
+  git:
+    syncRepo: https://source.developers.google.com/p/PROJECT/r/REPO_DIR
+    secretType: gcencode
+    policyDir: "anthos-lab"
