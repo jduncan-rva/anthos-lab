@@ -73,19 +73,33 @@ function deploy_repo {
   gcloud source repos clone $REPO_DIR 
 }
 
+function configure_git {
+  git config --global name "Anthos Lab"
+  git config --globel email "$GCP_EMAIL_ADDRESS"
+}
+
 function deploy_acm {
   echo "Configuring cluster for Anthos Configuration Management"
   gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
-  cp addons/acm/config-management.yaml ./config-management-$cluster.yaml 
+  cp addons/acm/config-management.yaml ./config-management-$cluster.yaml
+
+  # make the needed substitutions 
   sed -i 's/CLUSTER/'"$cluster"'/' config-management-$cluster.yaml
   sed -i 's/PROJECT/'"$PROJECT"'/' config-management-$cluster.yaml
   sed -i 's/REPO_DIR/'"$REPO_DIR"'/' config-management-$cluster.yaml
+
+  echo "Applying ACM to $cluster"
   kubectl apply -f config-management-operator-$cluster.yaml
   echo "Installing nomos"
   gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos nomos
   chmod +x ./nomos
   echo "Initializing $REPO_DIR as ACM repository"
-  ./nomos init --path=$REPO_DIR 
+  ./nomos init --path=$REPO_DIR
+  configure_git
+  echo "Committing configuration to Git"
+  git -C $REPO_DIR add . 
+  git -C $REPO_DIR commit -a -m 'Intitial ACM Commit'
+  git -C $REPO_DIR push origin master
 }
 
 function install_addons {
