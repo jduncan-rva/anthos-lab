@@ -11,6 +11,28 @@ USAGE: ./anthos-lab.sh [deploy|cleanup|redeploy]
 
 ```
 
+### Assumptions 
+
+This tools assumes you're logged into the Google Cloud SDK. To confirm, run this
+command and make sure you're logged in as your `google.com` gcloud account. 
+
+```
+gcloud auth list
+```
+
+You should see output similar to the following: 
+
+```
+                                Credentialed Accounts
+ACTIVE  ACCOUNT
+        insecure-cloudtop-shared-user@cloudtop-prod.google.com.iam.gserviceaccount.com
+*       jamieduncan@google.com
+
+To set the active account, run:
+    $ gcloud config set account `ACCOUNT`
+
+```
+
 ### Config Files 
 
 * clusters.conf - a line-delimited file of the clusters you'd like to create or
