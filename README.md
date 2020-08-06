@@ -3,9 +3,13 @@
 A simple tool to deploy Anthos deployments with ASM. Built with `bash`, it's
 easy to read and extend.
 
-## Functionality
+## Usage
 
-How to use `anthos-lab.sh` effectively. 
+```
+./anthos-lab.sh help
+USAGE: ./anthos-lab.sh [deploy|cleanup|redeploy]
+
+```
 
 ### Config Files 
 
