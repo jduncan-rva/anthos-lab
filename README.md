@@ -1,13 +1,13 @@
-= anthos-lab
+# anthos-lab
 
 A simple tool to deploy Anthos deployments with ASM. Built with `bash`, it's
 easy to read and extend.
 
-== Functionality
+## Functionality
 
 How to use `anthos-lab.sh` effectively. 
 
-=== Config Files 
+### Config Files 
 
 * clusters.conf - a line-delimited file of the clusters you'd like to create or
   clean up. Example: 
@@ -28,7 +28,7 @@ How to use `anthos-lab.sh` effectively.
   GCP_EMAIL_ADDRESS=jamieduncan@google.com
   ```
 
-=== Options 
+### Options 
 
 * deploy - deploy clusters from your `clusters.config` file. These will be the
   latest available GKE clusters with ASM deployed using the `ASM_VER` variable
@@ -40,7 +40,7 @@ How to use `anthos-lab.sh` effectively.
 * redeploy - this cleans up old clusters and redploys them as fresh instances.
   This is useful if you get something too far off line to repair.
 
-== Future Work
+## Future Work
 
 Down the road, I plan to start adding specific demo scenarios such as
 multi-cluster meshes, various app deployments, etc.
