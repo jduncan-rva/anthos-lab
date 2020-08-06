@@ -25,6 +25,52 @@ function prep {
   CLUSTERS=$(<$CLUSTER_LIST)
 }
 
+function deploy_asm {
+  # Download the Istio installer and Signature
+  echo "Downloading ASM Resources" 
+  curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz
+  curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig
+  
+  # ASM Prep work
+  echo "Preparing for ASM Deploy"
+  curl --request POST --header "Authorization: Bearer $(gcloud auth print-access-token)" --data '' "https://meshconfig.googleapis.com/v1alpha1/projects/$PROJECT:initialize"
+
+  # Verify the signature of the downloaded files
+  echo "Verifying ASM Resources"
+  openssl dgst -verify - -signature istio-$ASM_VER-linux-amd64.tar.gz.1.sig istio-$ASM_VER-linux-amd64.tar.gz <<'EOF'
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWZrGCUaJJr1H8a36sG4UUoXvlXvZ
+wQfk16sxprI2gOJ2vFFggdq3ixF2h4qNBt0kI7ciDhgpwS8t+/960IsIgw==
+-----END PUBLIC KEY-----
+EOF
+
+  FILE_VERIFICATION=$?
+
+  if [ $FILE_VERIFICATION -ne 0 ];then
+      echo "ASM Resources do not pass verification check. Please Confirm and re-try."
+      exit $FILE_VERIFICATION
+  fi
+  # Untar the Istio archive
+  echo "Untarring ASM Archive"
+  tar xzf istio-$ASM_VER-linux-amd64.tar.gz
+
+  echo "Updating PATH variable to include istioctl"
+  export PATH=$PWD/istio-$ASM_VER/bin:$PATH
+
+  echo "Deploying ASM into $cluster"
+  kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@release-1.6-asm .
+  kpt cfg set asm gcloud.container.cluster $cluster
+  kpt cfg set asm gcloud.core.project $PROJECT
+  kpt cfg set asm gcloud.compute.location $REGION
+  istioctl install -f asm/cluster/istio-operator.yaml
+}
+
+function install_addons {
+  if "$DEPLOY_ASM"; then
+    deploy_asm
+  fi
+}
+
 function deploy {
   echo "Ensuring proper APIs are enabled"
   gcloud services enable \
@@ -40,44 +86,14 @@ function deploy {
     anthos.googleapis.com \
     gkeconnect.googleapis.com \
     gkehub.googleapis.com \
-    cloudresourcemanager.googleapis.com
+    cloudresourcemanager.googleapis.com \
+    anthos.googleapis.com
 
   # installing dependencies
   sudo apt-get install \
     google-cloud-sdk \
     google-cloud-sdk-kpt \
     kubectl
-
-  # Download the Istio installer and Signature
-  echo "Downloading ASM Resources" 
-  curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz
-  curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig
-  
-  # ASM Prep work
-  echo "Preparing for ASM Deploy"
-  curl --request POST --header "Authorization: Bearer $(gcloud auth print-access-token)" --data '' "https://meshconfig.googleapis.com/v1alpha1/projects/$PROJECT:initialize"
-
-  # Verify the signature of the downloaded files
-  echo "Verifying ASM Resources"
-  openssl dgst -verify - -signature istio-$ASM_VER-linux-amd64.tar.gz.1.sig istio-$ASM_VER-linux-amd64.tar.gz <<'EOF'
-  -----BEGIN PUBLIC KEY-----
-  MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWZrGCUaJJr1H8a36sG4UUoXvlXvZ
-  wQfk16sxprI2gOJ2vFFggdq3ixF2h4qNBt0kI7ciDhgpwS8t+/960IsIgw==
-  -----END PUBLIC KEY-----
-EOF
-
-  FILE_VERIFICATION=$?
-
-  if [ $FILE_VERIFICATION -ne 0 ];then
-      echo "ASM Resources do not pass verification check. Please Confirm and re-try."
-      exit $FILE_VERIFICATION
-  fi
-  # Untar the Istio archive
-  echo "Untarring ASM Archive"
-  tar xzf istio-$ASM_VER-linux-amd64.tar.gz
-
-  echo "Updating PATH variable to include istioctl"
-  export PATH=$PWD/istio-$ASM_VER/bin:$PATH
 
   for cluster in ${CLUSTERS[@]}
   do
@@ -111,13 +127,8 @@ EOF
 
     echo "Registering GKE Cluster with Anthos"
     gcloud container hub memberships register $cluster --project=$PROJECT --gke-uri=https://container.googleapis.com/projects/$PROJECT/locations/$REGION/clusters/$cluster --service-account-key-file=$ACCT.json
-
-    echo "Deploying ASM into $cluster"
-    kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@release-1.6-asm .
-    kpt cfg set asm gcloud.container.cluster $cluster
-    kpt cfg set asm gcloud.core.project $PROJECT
-    kpt cfg set asm gcloud.compute.location $REGION
-    istioctl install -f asm/cluster/istio-operator.yaml
+    
+    install_addons
   done
 }
 
@@ -163,13 +174,3 @@ case $ACTION in
   ;;
 
 esac
-
-
-
-
-
-
-
-
-
-
