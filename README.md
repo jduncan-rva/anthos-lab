@@ -33,6 +33,13 @@ To set the active account, run:
 
 ```
 
+### Environments
+
+This project was originally written to work on a cloudshell instance. After moving to
+this git repository, it's now being developed and used on a cloudtop instance.
+While I haven't tested it, it would also likely work in the Linux VM on a
+corporate Chromebook or a corporate Macbook.
+
 ### Config Files 
 
 * clusters.conf - a line-delimited file of the clusters you'd like to create or
