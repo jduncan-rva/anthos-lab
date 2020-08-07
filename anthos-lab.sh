@@ -15,7 +15,7 @@ function prep {
   PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
   WORKLOAD_POOL=$PROJECT.svc.id.goog
   MESH_ID="proj-$PROJECT_NUMBER"
-  REPO_DIR=anthos-lab-acm 
+  REPO_DIR=$HOME/anthos-lab-acm 
 
   # set gcloud variables
   echo "Setting gcloud information"
@@ -75,8 +75,8 @@ function deploy_repo {
 }
 
 function configure_git {
-  git config --global name "Anthos Lab"
-  git config --globel email "$GCP_EMAIL_ADDRESS"
+  git config --global name "Anthos Lab User"
+  git config --global email "$GCP_EMAIL_ADDRESS"
 }
 
 function deploy_acm {
