@@ -7,11 +7,6 @@
 
 ACTION=$1
 
-ASM_KEY="-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWZrGCUaJJr1H8a36sG4UUoXvlXvZ
-wQfk16sxprI2gOJ2vFFggdq3ixF2h4qNBt0kI7ciDhgpwS8t+/960IsIgw==
------END PUBLIC KEY-----"
-
 function prep {
   source default.config
 
