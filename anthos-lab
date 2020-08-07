@@ -58,7 +58,7 @@ function deploy_asm {
     fi
     # Untar the Istio archive
     echo "Untarring ASM Archive"
-    tar xzf deploy/istio-$ASM_VER-linux-amd64.tar.gz
+    tar xzf -C deploy/ deploy/istio-$ASM_VER-linux-amd64.tar.gz
 
     echo "Updating PATH variable to include istioctl"
     export PATH=$PWD/deploy/istio-$ASM_VER/bin:$PATH
@@ -81,14 +81,15 @@ function deploy_repo {
 
 function configure_git {
   git -C $REPO_DIR init
+  git -C $REPO_DIR remote add origin https://source.developers.google.com/p/$PROJECT/r/$REPO_NAME
   git config --global name "Anthos Lab User"
   git config --global email "$GCP_EMAIL_ADDRESS"
 }
 
 function deploy_acm {
   echo "Configuring cluster for Anthos Configuration Management"
-  gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
-  cp addons/acm/config-management.yaml deploy/config-management-$cluster.yaml
+  gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml deploy/config-management-operator.yaml
+  cp addons/acm/config-management.yaml deploy/config-management-operator-$cluster.yaml
 
   # make the needed substitutions 
   sed -i 's/CLUSTER/'"$cluster"'/' deploy/config-management-$cluster.yaml
@@ -96,7 +97,8 @@ function deploy_acm {
   sed -i 's/REPO_NAME/'"$REPO_NAME"'/' deploy/config-management-$cluster.yaml
 
   echo "Applying ACM to $cluster"
-  kubectl apply -f deploy/config-management-operator-$cluster.yaml
+  kubectl apply -f deploy/config-management-operator.yaml
+  kubectl apply -f deploy/config-management-$cluster.yaml
 
   echo "Installing nomos"
   gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos deploy/nomos
