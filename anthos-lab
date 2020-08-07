@@ -15,7 +15,7 @@ function prep {
   PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
   WORKLOAD_POOL=$PROJECT.svc.id.goog
   MESH_ID="proj-$PROJECT_NUMBER"
-  REPO_NAME=anthos-lab-cm
+  REPO_NAME=anthos-lab-acm
   REPO_DIR=$HOME/$REPO_NAME 
 
   # set gcloud variables
@@ -54,7 +54,7 @@ function deploy_asm {
     fi
     # Untar the Istio archive
     echo "Untarring ASM Archive"
-    tar xzf -C ./deploy deploy/istio-$ASM_VER-linux-amd64.tar.gz
+    tar -C ./deploy -xzf deploy/istio-$ASM_VER-linux-amd64.tar.gz
 
     echo "Updating PATH variable to include istioctl"
     export PATH=$PWD/deploy/istio-$ASM_VER/bin:$PATH
@@ -70,23 +70,30 @@ function deploy_asm {
 
 function deploy_repo {
   echo "Creating Cloud Source Repository"
-  git config --global credential.'https://source.developers.google.com'.helper gcloud.sh
-  gcloud source repos create $REPO_DIR 
-  gcloud source repos clone $REPO_DIR 
+  gcloud source repos create $REPO_NAME
+  gcloud source repos clone $REPO_NAME $REPO_DIR
 }
 
 function configure_git {
+  git config --global credential.'https://source.developers.google.com'.helper gcloud.sh
+  git config --global user.name "Anthos Lab User"
+  git config --global user.email "$GCP_EMAIL_ADDRESS"
   git -C $REPO_DIR init
   git -C $REPO_DIR remote add origin https://source.developers.google.com/p/$PROJECT/r/$REPO_NAME
-  git config --global name "Anthos Lab User"
-  git config --global email "$GCP_EMAIL_ADDRESS"
 }
 
 function deploy_acm {
   echo "Configuring cluster for Anthos Configuration Management"
   gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml deploy/config-management-operator.yaml
-  cp addons/acm/config-management.yaml deploy/config-management-operator-$cluster.yaml
+  cp addons/acm/config-management.yaml deploy/config-management-$cluster.yaml
 
+  echo "Ensuring systems IAM policies are in place"
+  # https://cloud.google.com/anthos-config-management/docs/how-to/installing#git-creds-gcenode
+
+  gcloud projects add-iam-policy-binding $PROJECT --member serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com --role roles/source.reader
+
+  gcloud iam service-accounts add-iam-policy-binding --role roles/iam.workloadIdentityUser --member "serviceAccount:$PROJECT.svc.id.goog[config-management-system/importer]" $PROJECT_NUMBER-compute@developer.gserviceaccount.com
+  
   # make the needed substitutions 
   sed -i 's/CLUSTER/'"$cluster"'/' deploy/config-management-$cluster.yaml
   sed -i 's/PROJECT/'"$PROJECT"'/' deploy/config-management-$cluster.yaml
@@ -96,13 +103,21 @@ function deploy_acm {
   kubectl apply -f deploy/config-management-operator.yaml
   kubectl apply -f deploy/config-management-$cluster.yaml
 
+  echo "Waiting for ACM CRD to deploy"
+  sleep 30
+  echo "Annotating Kubernetes Service Account"
+  kubectl annotate serviceaccount -n config-management-system importer iam.gke.io/gcp-service-account=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
+
   echo "Installing nomos"
   gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos deploy/nomos
   chmod +x ./deploy/nomos
 
+  deploy_repo
+
+  configure_git
+
   echo "Initializing $REPO_DIR as ACM repository"
   ./deploy/nomos init --path=$REPO_DIR
-  configure_git
 
   echo "Committing configuration to Git"
   git -C $REPO_DIR add . 
@@ -174,6 +189,7 @@ function deploy {
 
     echo "Creating $cluster GKE Cluster"
     gcloud beta container clusters create $cluster \
+      --scopes=cloud-platform \
       --machine-type=e2-standard-4 \
       --num-nodes=4 \
       --workload-pool=$WORKLOAD_POOL \
@@ -206,7 +222,7 @@ function cleanup_gcp {
     gcloud container hub memberships delete $cluster -q
     gcloud container clusters delete $cluster -q
     if $DEPLOY_ACM;then 
-      gcloud source repos delete $REPO_DIR -q
+      gcloud source repos delete $REPO_NAME -q
     fi
   done
 }

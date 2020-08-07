@@ -9,5 +9,4 @@ spec:
   clusterName: CLUSTER
   git:
     syncRepo: https://source.developers.google.com/p/PROJECT/r/REPO_NAME
-    secretType: gcencode
-    policyDir: "anthos-lab"
+    secretType: gcenode
