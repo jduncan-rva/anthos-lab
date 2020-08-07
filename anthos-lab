@@ -25,10 +25,6 @@ function prep {
 
   # Read in cluster list
   CLUSTERS=$(<$CLUSTER_LIST)
-
-  # Create deploy directory 
-  echo "Creating deploy directory"
-  mkdir deploy
 }
 
 function deploy_asm {
@@ -58,7 +54,7 @@ function deploy_asm {
     fi
     # Untar the Istio archive
     echo "Untarring ASM Archive"
-    tar xzf -C deploy/ deploy/istio-$ASM_VER-linux-amd64.tar.gz
+    tar xzf -C ./deploy deploy/istio-$ASM_VER-linux-amd64.tar.gz
 
     echo "Updating PATH variable to include istioctl"
     export PATH=$PWD/deploy/istio-$ASM_VER/bin:$PATH
@@ -134,6 +130,10 @@ function update_pkgs {
 }
 
 function deploy {
+  # Create deploy directory 
+  echo "Creating deploy directory"
+  mkdir deploy
+
   echo "Ensuring proper APIs are enabled"
   gcloud services enable \
     container.googleapis.com \
