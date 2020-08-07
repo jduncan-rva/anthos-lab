@@ -15,7 +15,8 @@ function prep {
   PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
   WORKLOAD_POOL=$PROJECT.svc.id.goog
   MESH_ID="proj-$PROJECT_NUMBER"
-  REPO_DIR=$HOME/anthos-lab-acm 
+  REPO_NAME=anthos-lab-cm
+  REPO_DIR=$HOME/$REPO_NAME 
 
   # set gcloud variables
   echo "Setting gcloud information"
@@ -24,22 +25,26 @@ function prep {
 
   # Read in cluster list
   CLUSTERS=$(<$CLUSTER_LIST)
+
+  # Create deploy directory 
+  echo "Creating deploy directory"
+  mkdir deploy
 }
 
 function deploy_asm {
 
-  if [-d "istio-$ASM_VER/"];then 
+  if [ -d "deploy/istio-$ASM_VER/" ];then 
     # this is mostly to not do this for every cluster in a loop
     echo "ASM Resources already present"
   else
     # Download the Istio installer and Signature
     echo "Downloading ASM Resources" 
-    curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz
-    curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig
+    (cd deploy && curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz)
+    (cd deploy && curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig)
     
     # Verify the signature of the downloaded files
     echo "Verifying ASM Resources"
-    openssl dgst -verify asm.key -signature istio-$ASM_VER-linux-amd64.tar.gz.1.sig istio-$ASM_VER-linux-amd64.tar.gz
+    openssl dgst -verify asm.key -signature deploy/istio-$ASM_VER-linux-amd64.tar.gz.1.sig deploy/istio-$ASM_VER-linux-amd64.tar.gz
     
     # ASM Prep work
     echo "Preparing for ASM Deploy"
@@ -53,18 +58,18 @@ function deploy_asm {
     fi
     # Untar the Istio archive
     echo "Untarring ASM Archive"
-    tar xzf istio-$ASM_VER-linux-amd64.tar.gz
+    tar xzf deploy/istio-$ASM_VER-linux-amd64.tar.gz
 
     echo "Updating PATH variable to include istioctl"
-    export PATH=$PWD/istio-$ASM_VER/bin:$PATH
+    export PATH=$PWD/deploy/istio-$ASM_VER/bin:$PATH
   fi 
 
   echo "Deploying ASM into $cluster"
-  kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@release-1.6-asm .
-  kpt cfg set asm gcloud.container.cluster $cluster
-  kpt cfg set asm gcloud.core.project $PROJECT
-  kpt cfg set asm gcloud.compute.location $REGION
-  istioctl install -f asm/cluster/istio-operator.yaml
+  kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@release-1.6-asm ./deploy
+  kpt cfg set deploy/asm gcloud.container.cluster $cluster
+  kpt cfg set deploy/asm gcloud.core.project $PROJECT
+  kpt cfg set deploy/asm gcloud.compute.location $REGION
+  istioctl install -f deploy/asm/cluster/istio-operator.yaml
 }
 
 function deploy_repo {
@@ -75,6 +80,7 @@ function deploy_repo {
 }
 
 function configure_git {
+  git -C $REPO_DIR init
   git config --global name "Anthos Lab User"
   git config --global email "$GCP_EMAIL_ADDRESS"
 }
@@ -82,22 +88,22 @@ function configure_git {
 function deploy_acm {
   echo "Configuring cluster for Anthos Configuration Management"
   gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
-  cp addons/acm/config-management.yaml ./config-management-$cluster.yaml
+  cp addons/acm/config-management.yaml deploy/config-management-$cluster.yaml
 
   # make the needed substitutions 
-  sed -i 's/CLUSTER/'"$cluster"'/' config-management-$cluster.yaml
-  sed -i 's/PROJECT/'"$PROJECT"'/' config-management-$cluster.yaml
-  sed -i 's/REPO_DIR/'"$REPO_DIR"'/' config-management-$cluster.yaml
+  sed -i 's/CLUSTER/'"$cluster"'/' deploy/config-management-$cluster.yaml
+  sed -i 's/PROJECT/'"$PROJECT"'/' deploy/config-management-$cluster.yaml
+  sed -i 's/REPO_NAME/'"$REPO_NAME"'/' deploy/config-management-$cluster.yaml
 
   echo "Applying ACM to $cluster"
-  kubectl apply -f config-management-operator-$cluster.yaml
+  kubectl apply -f deploy/config-management-operator-$cluster.yaml
 
   echo "Installing nomos"
-  gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos nomos
-  chmod +x ./nomos
+  gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos deploy/nomos
+  chmod +x ./deploy/nomos
 
   echo "Initializing $REPO_DIR as ACM repository"
-  ./nomos init --path=$REPO_DIR
+  ./deploy/nomos init --path=$REPO_DIR
   configure_git
 
   echo "Committing configuration to Git"
@@ -162,7 +168,7 @@ function deploy {
       --role=roles/iam.serviceAccountAdmin \
       --role=roles/iam.serviceAccountKeyAdmin \
       --role=roles/gkehub.admin
-    gcloud iam service-accounts keys create $ACCT.json --iam-account=$ACCT@$PROJECT.iam.gserviceaccount.com --project=$PROJECT
+    gcloud iam service-accounts keys create deploy/$ACCT.json --iam-account=$ACCT@$PROJECT.iam.gserviceaccount.com --project=$PROJECT
 
     echo "Creating $cluster GKE Cluster"
     gcloud beta container clusters create $cluster \
@@ -178,7 +184,7 @@ function deploy {
     kubectl create namespace istio-system
 
     echo "Registering GKE Cluster with Anthos"
-    gcloud container hub memberships register $cluster --project=$PROJECT --gke-uri=https://container.googleapis.com/projects/$PROJECT/locations/$REGION/clusters/$cluster --service-account-key-file=$ACCT.json
+    gcloud container hub memberships register $cluster --project=$PROJECT --gke-uri=https://container.googleapis.com/projects/$PROJECT/locations/$REGION/clusters/$cluster --service-account-key-file=deploy/$ACCT.json
     
     install_addons
   done
@@ -186,11 +192,7 @@ function deploy {
 
 function cleanup_filesystem {
   echo "Cleaning up filesystem artifacts"
-  rm -rf asm
-  rm -rf istio*
-  rm -f *-sa.json
-  rm -f config-management-*.yaml
-  rm -f nomos 
+  rm -rf deploy 
   rm -rf $REPO_DIR 
 }
 
