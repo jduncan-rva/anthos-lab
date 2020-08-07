@@ -56,9 +56,13 @@ corporate Chromebook or a corporate Macbook.
   ```
   REGION=us-east1
   PROJECT=jamieduncan
+  PROJECT_NUMBER=559083212340
   CLUSTER_LIST=clusters.config
   ASM_VER=1.6.5-asm.7
   GCP_EMAIL_ADDRESS=jamieduncan@google.com
+  DEPLOY_ASM=true
+  DEPLOY_ACM=true
+  UPDATE_PKGS=false
   ```
 
 ### Options 
