@@ -90,12 +90,15 @@ function deploy_acm {
 
   echo "Applying ACM to $cluster"
   kubectl apply -f config-management-operator-$cluster.yaml
+
   echo "Installing nomos"
   gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos nomos
   chmod +x ./nomos
+
   echo "Initializing $REPO_DIR as ACM repository"
   ./nomos init --path=$REPO_DIR
   configure_git
+
   echo "Committing configuration to Git"
   git -C $REPO_DIR add . 
   git -C $REPO_DIR commit -a -m 'Intitial ACM Commit'
@@ -106,6 +109,19 @@ function install_addons {
   if "$DEPLOY_ASM"; then
     deploy_asm
   fi
+  if "$DEPLOY_ACM"; then
+    deploy_acm
+  fi 
+}
+
+function update_pkgs {
+  # installing dependencies if needed/desired
+  echo "Checking for proper package dependencies (Linux)"
+  sudo apt-get install \
+    google-cloud-sdk \
+    google-cloud-sdk-kpt \
+    kubectl \
+    git
 }
 
 function deploy {
@@ -126,12 +142,9 @@ function deploy {
     cloudresourcemanager.googleapis.com \
     anthos.googleapis.com
 
-  # installing dependencies
-  sudo apt-get install \
-    google-cloud-sdk \
-    google-cloud-sdk-kpt \
-    kubectl \
-    git
+  if "$UPDATE_PKGS"; then
+    update_pkgs
+  fi
 
   for cluster in ${CLUSTERS[@]}
   do
@@ -187,7 +200,9 @@ function cleanup_gcp {
     gcloud iam service-accounts delete $cluster-sa@$PROJECT.iam.gserviceaccount.com -q
     gcloud container hub memberships delete $cluster -q
     gcloud container clusters delete $cluster -q
-    gcloud source repos delete $REPO_DIR -q
+    if $DEPLOY_ACM;then 
+      gcloud source repos delete $REPO_DIR -q
+    fi
   done
 }
 
