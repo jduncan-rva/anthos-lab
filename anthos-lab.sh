@@ -7,6 +7,11 @@
 
 ACTION=$1
 
+ASM_KEY="-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWZrGCUaJJr1H8a36sG4UUoXvlXvZ
+wQfk16sxprI2gOJ2vFFggdq3ixF2h4qNBt0kI7ciDhgpwS8t+/960IsIgw==
+-----END PUBLIC KEY-----"
+
 function prep {
   source default.config
 
@@ -27,36 +32,37 @@ function prep {
 }
 
 function deploy_asm {
-  # Download the Istio installer and Signature
-  echo "Downloading ASM Resources" 
-  curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz
-  curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig
-  
-  # ASM Prep work
-  echo "Preparing for ASM Deploy"
-  curl --request POST --header "Authorization: Bearer $(gcloud auth print-access-token)" --data '' "https://meshconfig.googleapis.com/v1alpha1/projects/$PROJECT:initialize"
 
-  # Verify the signature of the downloaded files
-  echo "Verifying ASM Resources"
-  openssl dgst -verify - -signature istio-$ASM_VER-linux-amd64.tar.gz.1.sig istio-$ASM_VER-linux-amd64.tar.gz <<'EOF'
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWZrGCUaJJr1H8a36sG4UUoXvlXvZ
-wQfk16sxprI2gOJ2vFFggdq3ixF2h4qNBt0kI7ciDhgpwS8t+/960IsIgw==
------END PUBLIC KEY-----
-EOF
+  if [-d "istio-$ASM_VER/"];then 
+    # this is mostly to not do this for every cluster in a loop
+    echo "ASM Resources already present"
+  else
+    # Download the Istio installer and Signature
+    echo "Downloading ASM Resources" 
+    curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz
+    curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig
+    
+    # Verify the signature of the downloaded files
+    echo "Verifying ASM Resources"
+    openssl dgst -verify asm.key -signature istio-$ASM_VER-linux-amd64.tar.gz.1.sig istio-$ASM_VER-linux-amd64.tar.gz
+    
+    # ASM Prep work
+    echo "Preparing for ASM Deploy"
+    curl --request POST --header "Authorization: Bearer $(gcloud auth print-access-token)" --data '' "https://meshconfig.googleapis.com/v1alpha1/projects/$PROJECT:initialize"
+    
+    FILE_VERIFICATION=$?
 
-  FILE_VERIFICATION=$?
+    if [ $FILE_VERIFICATION -ne 0 ];then
+        echo "ASM Resources do not pass verification check. Please Confirm and re-try."
+        exit $FILE_VERIFICATION
+    fi
+    # Untar the Istio archive
+    echo "Untarring ASM Archive"
+    tar xzf istio-$ASM_VER-linux-amd64.tar.gz
 
-  if [ $FILE_VERIFICATION -ne 0 ];then
-      echo "ASM Resources do not pass verification check. Please Confirm and re-try."
-      exit $FILE_VERIFICATION
-  fi
-  # Untar the Istio archive
-  echo "Untarring ASM Archive"
-  tar xzf istio-$ASM_VER-linux-amd64.tar.gz
-
-  echo "Updating PATH variable to include istioctl"
-  export PATH=$PWD/istio-$ASM_VER/bin:$PATH
+    echo "Updating PATH variable to include istioctl"
+    export PATH=$PWD/istio-$ASM_VER/bin:$PATH
+  fi 
 
   echo "Deploying ASM into $cluster"
   kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@release-1.6-asm .
