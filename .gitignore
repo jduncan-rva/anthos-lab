@@ -5,3 +5,4 @@ config-management-operator.yaml
 config-management-*.yaml
 nomos
 deploy/
+clusters.config
