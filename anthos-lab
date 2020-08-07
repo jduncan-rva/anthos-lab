@@ -8,7 +8,7 @@
 ACTION=$1
 
 function prep {
-  source default.config
+  source cfg/default.config
 
   # Setting a few variables
 
@@ -44,7 +44,7 @@ function deploy_asm {
     
     # Verify the signature of the downloaded files
     echo "Verifying ASM Resources"
-    openssl dgst -verify asm.key -signature deploy/istio-$ASM_VER-linux-amd64.tar.gz.1.sig deploy/istio-$ASM_VER-linux-amd64.tar.gz
+    openssl dgst -verify addons/asm/asm.key -signature deploy/istio-$ASM_VER-linux-amd64.tar.gz.1.sig deploy/istio-$ASM_VER-linux-amd64.tar.gz
     
     # ASM Prep work
     echo "Preparing for ASM Deploy"
