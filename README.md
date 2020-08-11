@@ -57,7 +57,7 @@ Configuration files are kept in the `cfg` directory
   the `anthos-lab.sh` script. There's an example named `default.config.example`
   to get your started: 
 
-  ```
+```
 REGION=us-east1
 PROJECT=<YOUR PROJECT>
 CLUSTER_LIST=cfg/clusters.config.example
@@ -67,7 +67,7 @@ GCP_EMAIL_ADDRESS=<YOUR GCP EMAIL>
 # here
 ADDONS=(asm acm)
 UPDATE_PKGS=false
-  ```
+```
 
 #### Enabling addons 
 
