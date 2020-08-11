@@ -1,5 +1,5 @@
 *-sa.json
-asm/
+deploy/asm/
 istio*
 config-management-operator.yaml
 config-management-*.yaml
