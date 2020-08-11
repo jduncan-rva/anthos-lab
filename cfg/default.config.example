@@ -1,8 +1,8 @@
 REGION=us-east1
-PROJECT=jamieduncan
-CLUSTER_LIST=cfg/clusters.config
+PROJECT=<YOUR PROJECT>
+CLUSTER_LIST=cfg/clusters.config.example
 ASM_VER=1.6.5-asm.7
-GCP_EMAIL_ADDRESS=jamieduncan@google.com
+GCP_EMAIL_ADDRESS=<YOUR GCP EMAIL>
 # if addons have dependencies on other addons, they are processed in the order 
 # here
 ADDONS=(asm acm)

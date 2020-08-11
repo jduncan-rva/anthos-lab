@@ -6,4 +6,5 @@ config-management-*.yaml
 nomos
 deploy/
 clusters.config
+default.config
 anthos-lab-acm/

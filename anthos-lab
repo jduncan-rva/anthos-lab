@@ -1,264 +1,60 @@
 #!/usr/bin/env bash
-# Simple tool to deploy multiple Anthos clusters with ASM configured
-# TODO:
-# - dependency resolution (sdk pkgs)
-# - clean up
-# - multi-cluster meshes
+# Simple tool to deploy multiple Anthos clusters with ASM, ACM, and 
+# various demo scenarios configured
+# TODO - Apigee/Endpoints
 
+# valid options[cleanup|deploy]
 ACTION=$1
 
 function prep {
   source cfg/default.config
 
-  # Setting a few variables
+  # set gcloud variables
+  echo "$FUNCNAME: Setting gcloud information Project and Region"
+  gcloud config set project $PROJECT 
+  gcloud config set compute/zone $REGION
 
+  # Setting a few additional variables
+  echo "$FUNCNAME: Setting additional variables"
   PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
   WORKLOAD_POOL=$PROJECT.svc.id.goog
   MESH_ID="proj-$PROJECT_NUMBER"
   REPO_NAME=anthos-lab-acm
-  REPO_DIR=$HOME/$REPO_NAME 
-
-  # set gcloud variables
-  echo "Setting gcloud information"
-  gcloud config set project $PROJECT 
-  gcloud config set compute/zone $REGION
+  REPO_DIR=$HOME/$REPO_NAME
+  DEPLOY_DIR=$PWD/deploy
+  ADDONS_DIR=$PWD/addons
 
   # Read in cluster list
+  echo "$FUNCNAME: Reading in cluster list"
   CLUSTERS=$(<$CLUSTER_LIST)
-}
-
-function deploy_asm {
-
-  if [ -d "deploy/istio-$ASM_VER/" ];then 
-    # this is mostly to not do this for every cluster in a loop
-    echo "ASM Resources already present"
-  else
-    # Download the Istio installer and Signature
-    echo "Downloading ASM Resources" 
-    (cd deploy && curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz)
-    (cd deploy && curl -LO https://storage.googleapis.com/gke-release/asm/istio-$ASM_VER-linux-amd64.tar.gz.1.sig)
-    
-    # Verify the signature of the downloaded files
-    echo "Verifying ASM Resources"
-    openssl dgst -verify addons/asm/asm.key -signature deploy/istio-$ASM_VER-linux-amd64.tar.gz.1.sig deploy/istio-$ASM_VER-linux-amd64.tar.gz
-    
-    # ASM Prep work
-    echo "Preparing for ASM Deploy"
-    curl --request POST --header "Authorization: Bearer $(gcloud auth print-access-token)" --data '' "https://meshconfig.googleapis.com/v1alpha1/projects/$PROJECT:initialize"
-    
-    FILE_VERIFICATION=$?
-
-    if [ $FILE_VERIFICATION -ne 0 ];then
-        echo "ASM Resources do not pass verification check. Please Confirm and re-try."
-        exit $FILE_VERIFICATION
-    fi
-    # Untar the Istio archive
-    echo "Untarring ASM Archive"
-    tar -C ./deploy -xzf deploy/istio-$ASM_VER-linux-amd64.tar.gz
-
-    echo "Updating PATH variable to include istioctl"
-    export PATH=$PWD/deploy/istio-$ASM_VER/bin:$PATH
-  fi 
-
-  echo "Deploying ASM into $cluster"
-  kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@release-1.6-asm ./deploy
-  kpt cfg set deploy/asm gcloud.container.cluster $cluster
-  kpt cfg set deploy/asm gcloud.core.project $PROJECT
-  kpt cfg set deploy/asm gcloud.compute.location $REGION
-  istioctl install -f deploy/asm/cluster/istio-operator.yaml
-}
-
-function deploy_repo {
-  echo "Creating Cloud Source Repository"
-  gcloud source repos create $REPO_NAME
-  gcloud source repos clone $REPO_NAME $REPO_DIR
-}
-
-function configure_git {
-  git config --global credential.'https://source.developers.google.com'.helper gcloud.sh
-  git config --global user.name "Anthos Lab User"
-  git config --global user.email "$GCP_EMAIL_ADDRESS"
-  git -C $REPO_DIR init
-  git -C $REPO_DIR remote add origin https://source.developers.google.com/p/$PROJECT/r/$REPO_NAME
-}
-
-function deploy_acm {
-  echo "Configuring cluster for Anthos Configuration Management"
-  gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml deploy/config-management-operator.yaml
-  cp addons/acm/config-management.yaml deploy/config-management-$cluster.yaml
-
-  echo "Ensuring systems IAM policies are in place"
-  # https://cloud.google.com/anthos-config-management/docs/how-to/installing#git-creds-gcenode
-
-  gcloud projects add-iam-policy-binding $PROJECT --member serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com --role roles/source.reader
-
-  gcloud iam service-accounts add-iam-policy-binding --role roles/iam.workloadIdentityUser --member "serviceAccount:$PROJECT.svc.id.goog[config-management-system/importer]" $PROJECT_NUMBER-compute@developer.gserviceaccount.com
-  
-  # make the needed substitutions 
-  sed -i 's/CLUSTER/'"$cluster"'/' deploy/config-management-$cluster.yaml
-  sed -i 's/PROJECT/'"$PROJECT"'/' deploy/config-management-$cluster.yaml
-  sed -i 's/REPO_NAME/'"$REPO_NAME"'/' deploy/config-management-$cluster.yaml
-
-  echo "Applying ACM to $cluster"
-  kubectl apply -f deploy/config-management-operator.yaml
-  kubectl apply -f deploy/config-management-$cluster.yaml
-
-  echo "Waiting for ACM CRD to deploy"
-  sleep 30
-  echo "Annotating Kubernetes Service Account"
-  kubectl annotate serviceaccount -n config-management-system importer iam.gke.io/gcp-service-account=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
-
-  echo "Installing nomos"
-  gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos deploy/nomos
-  chmod +x ./deploy/nomos
-
-  deploy_repo
-
-  configure_git
-
-  echo "Initializing $REPO_DIR as ACM repository"
-  ./deploy/nomos init --path=$REPO_DIR
-
-  echo "Committing configuration to Git"
-  git -C $REPO_DIR add . 
-  git -C $REPO_DIR commit -a -m 'Intitial ACM Commit'
-  git -C $REPO_DIR push origin master
-}
-
-function install_addons {
-  if "$DEPLOY_ASM"; then
-    deploy_asm
-  fi
-  if "$DEPLOY_ACM"; then
-    deploy_acm
-  fi 
-}
-
-function update_pkgs {
-  # installing dependencies if needed/desired
-  echo "Checking for proper package dependencies (Linux)"
-  sudo apt-get install \
-    google-cloud-sdk \
-    google-cloud-sdk-kpt \
-    kubectl \
-    git
-}
-
-function deploy {
-  # Create deploy directory 
-  echo "Creating deploy directory"
-  mkdir deploy
-
-  echo "Ensuring proper APIs are enabled"
-  gcloud services enable \
-    container.googleapis.com \
-    compute.googleapis.com \
-    monitoring.googleapis.com \
-    logging.googleapis.com \
-    cloudtrace.googleapis.com \
-    meshca.googleapis.com \
-    meshtelemetry.googleapis.com \
-    meshconfig.googleapis.com \
-    iamcredentials.googleapis.com \
-    anthos.googleapis.com \
-    gkeconnect.googleapis.com \
-    gkehub.googleapis.com \
-    cloudresourcemanager.googleapis.com \
-    anthos.googleapis.com
-
-  if "$UPDATE_PKGS"; then
-    update_pkgs
-  fi
-
   for cluster in ${CLUSTERS[@]}
   do
-    echo "Creating and Configuring Service Account"
-    ACCT=$cluster-sa 
-    gcloud iam service-accounts create $ACCT --project $PROJECT --display-name $ACCT --description "Service Account for $ACCT Anthos cluster"
-    gcloud projects add-iam-policy-binding $PROJECT --member="serviceAccount:$ACCT@$PROJECT.iam.gserviceaccount.com" --role="roles/gkehub.connect"
-    gcloud projects add-iam-policy-binding $PROJECT \
-      --member user:$GCP_EMAIL_ADDRESS \
-      --role=roles/editor \
-      --role=roles/compute.admin \
-      --role=roles/container.admin \
-      --role=roles/resourcemanager.projectIamAdmin \
-      --role=roles/iam.serviceAccountAdmin \
-      --role=roles/iam.serviceAccountKeyAdmin \
-      --role=roles/gkehub.admin
-    gcloud iam service-accounts keys create deploy/$ACCT.json --iam-account=$ACCT@$PROJECT.iam.gserviceaccount.com --project=$PROJECT
-
-    echo "Creating $cluster GKE Cluster"
-    gcloud beta container clusters create $cluster \
-      --scopes=cloud-platform \
-      --machine-type=e2-standard-4 \
-      --num-nodes=4 \
-      --workload-pool=$WORKLOAD_POOL \
-      --enable-stackdriver-kubernetes \
-      --subnetwork=default \
-      --labels=mesh_id=$MESH_ID \
-      --release-channel=regular
-    gcloud container clusters get-credentials $cluster
-    kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
-    kubectl create namespace istio-system
-
-    echo "Registering GKE Cluster with Anthos"
-    gcloud container hub memberships register $cluster --project=$PROJECT --gke-uri=https://container.googleapis.com/projects/$PROJECT/locations/$REGION/clusters/$cluster --service-account-key-file=deploy/$ACCT.json
-    
-    install_addons
+    echo "Cluster: $cluster"
   done
 }
 
-function cleanup_filesystem {
-  echo "Cleaning up filesystem artifacts"
-  rm -rf deploy 
-  rm -rf $REPO_DIR 
-}
-
-function cleanup_gcp {
-  for cluster in ${CLUSTERS[@]}
-    do
-    echo "Cleaning up cluster $cluster"
-    gcloud iam service-accounts delete $cluster-sa@$PROJECT.iam.gserviceaccount.com -q
-    gcloud container hub memberships delete $cluster -q
-    gcloud container clusters delete $cluster -q
-    if $DEPLOY_ACM;then 
-      gcloud source repos delete $REPO_NAME -q
-    fi
+function action {
+  # if it's a deploy, we start with Anthos
+  if [ $ACTION == 'deploy' ];then
+    source $ADDONS_DIR/anthos/$ACTION.sh
+  fi
+  # then apply the addons, or clean them up first
+  for addon in ${ADDONS[@]};do
+    source $ADDONS_DIR/$addon/$ACTION.sh
   done
+  # if it's a cleanup, we clean up Anthos last
+  if [ $ACTION == 'cleanup' ];then
+    source $ADDONS_DIR/anthos/$ACTION.sh
+  fi
 }
 
 case $ACTION in
-
-  deploy) 
+  deploy|cleanup) 
     prep
-    deploy
-  ;;
-
-  cleanup)
-    prep
-    cleanup_filesystem
-    cleanup_gcp
-  ;;
-
-  redeploy)
-    prep
-    cleanup_filesystem
-    cleanup_gcp
-    deploy
-  ;;
-
-  cleanupfs)
-    prep
-    cleanup_filesystem
-  ;;
-
-  cleanupgcp)
-    prep
-    cleanup_gcp
+    action
   ;;
 
   *)
-    echo "USAGE: $0 [cleanup|cleanupfs|cleanupgcp|deploy|redeploy]"
+    echo "USAGE: $0 [cleanup|deploy]"
   ;;
-
 esac
