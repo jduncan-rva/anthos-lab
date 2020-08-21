@@ -26,7 +26,6 @@ You should see output similar to the following:
 ```
                                 Credentialed Accounts
 ACTIVE  ACCOUNT
-        insecure-cloudtop-shared-user@cloudtop-prod.google.com.iam.gserviceaccount.com
 *       jamieduncan@google.com
 
 To set the active account, run:
@@ -71,7 +70,7 @@ Configuration files are kept in the `cfg` directory
 
 #### Enabling addons 
 
-Addons are things that are laid on top of your Anthos cluster once it's
+Addons are workflows that are laid on top of your Anthos cluster once it's
 deployed. Currently, there are addons for ACM and ASM. The `ADDONS` parameter in
 `default.config` tells the tool which addons to process when deploying or
 cleaning up a cluster. They are processed in order.
