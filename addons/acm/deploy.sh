@@ -14,6 +14,7 @@
 #
 # Script used to deploy Anthos Config Management (ACM) into Anthos clusters
 LOG_PREFIX="DEPLOY_ACM"
+REPO_DIR=~/anthos-acm
 
 function deploy_repo {
   echo "Creating Cloud Source Repository"
