@@ -186,9 +186,8 @@ if [ $ACTION == 'deploy' ];then
   gcloud container clusters list --filter="name:$CLUSTERS" --format="[box]"
   echo -e "${OC}  * Generating kubeconfig entry for cluster.${NC}"
   gcloud container clusters get-credentials $CLUSTERS
-  echo -e "${OC}  * Current ACM status.${NC}"
+  echo -e "${OC}  * Current ACM status. Not this may take a few minutes to show proper status.${NC}"
   $HOME/nomos status
-  echo -e "${OC}/n/n ${NC}"
 fi
 
 # cleanup tasks
