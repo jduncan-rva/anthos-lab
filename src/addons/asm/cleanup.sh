@@ -12,15 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# cleans up artifacts created in GCP and on the filesystem to deploy ACM
-LOG_PREFIX="CLEANUP_ACM"
+# used to cleanup artifacts created by ASM deployment
 
-echo "$LOG_PREFIX: Cleaning up ACM filesystem artifacts"
-rm -rf $REPO_DIR
-rm -f $DEPLOY_DIR/config-management-operator.yaml
-rm -f $DEPLOY_DIR/config-management-$cluster.yaml
-rm -rf $DEPLOY_DIR/nomos
+echo -e "\n\n${HC}------------------- ASM CLEANUP --------------------${NC}\n"
 
-echo "$LOG_PREFIX: Cleaning up ACM GCP artifacts"
-gcloud source repos delete $REPO_NAME -q
-gcloud projects remove-iam-policy-binding $PROJECT --member serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com --role roles/source.reader
+echo -e "${OC}  * Complete ${NC}"

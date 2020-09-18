@@ -8,3 +8,5 @@ GCP_EMAIL_ADDRESS=<YOUR GCP EMAIL>
 ADDONS=(asm acm)
 UPDATE_PKGS=false
 CONTAINERIZED=true
+
+CLUSTERS=(anthos-1 anthos-2)
