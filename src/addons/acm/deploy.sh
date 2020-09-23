@@ -59,10 +59,6 @@ sleep 15
 echo -e "${OC}  * Annotating Kubernetes Service Account${NC}"
 kubectl annotate serviceaccount -n config-management-system importer iam.gke.io/gcp-service-account=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
-echo -e "${OC}  * Downloading nomos tool${NC}"
-gsutil cp gs://config-management-release/released/latest/linux_amd64/nomos /opt/nomos
-chmod +x /opt/nomos
-
 configure_git
 
 deploy_repo
