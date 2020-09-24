@@ -39,8 +39,8 @@ function prep {
 
   # authenticate via service account
   echo -e "\n\n${HC}------------------- GCLOUD CONFIGURATION --------------------${NC}\n"
-  echo -e "${OC}  * Logging in with Service Account $SERVICE_ACCT${NC}"
-  gcloud auth activate-service-account --key-file=/opt/$SERVICE_ACCT.json
+  echo -e "${OC}  * Logging in with Service Account anthos-lab-sa${NC}"
+  gcloud auth activate-service-account --key-file=/opt/anthos-lab-sa.json
 
   # set gcloud variables
   echo -e "${OC}  * Setting Project and Region ${NC}"

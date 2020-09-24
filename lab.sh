@@ -180,7 +180,8 @@ if [ $ACTION == 'deploy' ];then
   docker run -it -e ACTION=$ACTION --env-file=$(pwd)/default.config \
    -v $(pwd)/anthos-lab-sa.json:/opt/anthos-lab-sa.json \
    -v $HOME/$REPO_DIR:/opt/$REPO_DIR \
-   -v $HOME/deploy:/opt/deploy anthos-lab
+   -v $HOME/deploy:/opt/deploy \
+   jeduncan/anthos-lab:311.0.0-alpine
 
   echo -e "\n\n${HC}------------------- CLUSTER INFORMATION --------------------${NC}\n"
 
@@ -199,6 +200,6 @@ if [ $ACTION == 'cleanup' ];then
 
   docker run -it -e ACTION=$ACTION --env-file=$(pwd)/default.config \
     -v $(pwd)/anthos-lab-sa.json:/opt/anthos-lab-sa.json \
-    anthos-lab
+    jeduncan/anthos-lab:311.0.0-alpine
 fi
 
