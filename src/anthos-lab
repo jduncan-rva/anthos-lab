@@ -38,7 +38,11 @@ NC='\033[0m'
 function prep {
 
   # authenticate via service account
-  echo -e "\n\n${HC}------------------- GCLOUD CONFIGURATION --------------------${NC}\n"
+  if [ $ACTION -eq 'deploy' ];then
+    echo -e "\n\n${HC}------------------- DEPLOY --------------------${NC}\n"
+  else 
+    echo -e "\n\n${HC}------------------- CLEANUP --------------------${NC}\n"
+  fi
   echo -e "${OC}  * Logging in with Service Account anthos-lab-sa${NC}"
   gcloud auth activate-service-account --key-file=/opt/anthos-lab-sa.json
 
