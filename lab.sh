@@ -114,31 +114,32 @@ anthos.googleapis.com \
 gkeconnect.googleapis.com \
 gkehub.googleapis.com \
 cloudresourcemanager.googleapis.com \
+sourcerepo.googleapis.com \
 anthos.googleapis.com > /dev/null
 
 # service account key verification
-SA_EXISTS=$(gcloud iam service-accounts list | egrep "^$SERVICE_ACCT\ .*" | wc -l)
+SA_EXISTS=$(gcloud iam service-accounts list | egrep "^anthos-lab-sa\ .*" | wc -l)
 
 if [ "$SA_EXISTS" -gt 0 ];then
   #a service account with the desired name already exists. 
   # we won't try to re-create it
   echo -e "${OC}  * Service Account already exists. Continuing. ${NC}"
 else 
-  echo -e "${OC}  * Creating Service Account $SERVICE_ACCT${NC}"
-  gcloud iam service-accounts create $SERVICE_ACCT --project $PROJECT --display-name $SERVICE_ACCT --description "Service Account for Anthos Lab Container Deployment" > /dev/null
+  echo -e "${OC}  * Creating Service Account anthos-lab-sa${NC}"
+  gcloud iam service-accounts create anthos-lab-sa --project $PROJECT --display-name anthos-lab-sa --description "Service Account for Anthos Lab Container Deployment" > /dev/null
 
-  echo -e "${OC}  * Applying role bindings for Service Account $SERVICE_ACCT${NC}"
-  gcloud projects add-iam-policy-binding $PROJECT --member serviceAccount:$SERVICE_ACCT@$PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null
+  echo -e "${OC}  * Applying role bindings for Service Account anthos-lab-sa${NC}"
+  gcloud projects add-iam-policy-binding $PROJECT --member serviceAccount:anthos-lab-sa@$PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null
 fi
 
 # service account key verification
-if [ -f $SERVICE_ACCT.json ];then 
-  echo -e "${OC}  * Account Key Present - $SERVICE_ACCT.json Continuing.${NC}"
+if [ -f anthos-lab-sa.json ];then 
+  echo -e "${OC}  * Account Key Present - anthos-lab-sa.json Continuing.${NC}"
 else 
-  echo -e "${OC}  * Creating account keys for Service Account $SERVICE_ACCT${NC}"
+  echo -e "${OC}  * Creating account keys for Service Account anthos-lab-sa${NC}"
 
-  gcloud iam service-accounts keys create $SERVICE_ACCT.json \
-  --iam-account=$SERVICE_ACCT@$PROJECT.iam.gserviceaccount.com \
+  gcloud iam service-accounts keys create anthos-lab-sa.json \
+  --iam-account=anthos-lab-sa@$PROJECT.iam.gserviceaccount.com \
   --project=$PROJECT > /dev/null
 fi
 
@@ -177,7 +178,7 @@ if [ $ACTION == 'deploy' ];then
   echo -e "${OC}  * Preflight checks complete. Continuing to deployment. ${NC}"
 
   docker run -it -e ACTION=$ACTION --env-file=$(pwd)/default.config \
-   -v $(pwd)/$SERVICE_ACCT.json:/opt/$SERVICE_ACCT.json \
+   -v $(pwd)/anthos-lab-sa.json:/opt/anthos-lab-sa.json \
    -v $HOME/$REPO_DIR:/opt/$REPO_DIR \
    -v $HOME/deploy:/opt/deploy anthos-lab
 
@@ -186,7 +187,8 @@ if [ $ACTION == 'deploy' ];then
   gcloud container clusters list --filter="name:$CLUSTERS" --format="[box]"
   echo -e "${OC}  * Generating kubeconfig entry for cluster.${NC}"
   gcloud container clusters get-credentials $CLUSTERS
-  echo -e "${OC}  * Current ACM status. Not this may take a few minutes to show proper status.${NC}"
+  echo -e "${OC}  * Getting current ACM status. This may take a few minutes to show proper status.${NC}"
+  sleep 15
   $HOME/nomos status
 fi
 
@@ -196,7 +198,7 @@ if [ $ACTION == 'cleanup' ];then
   rm -rf $HOME/$REPO_NAME
 
   docker run -it -e ACTION=$ACTION --env-file=$(pwd)/default.config \
-    -v $(pwd)/$SERVICE_ACCT.json:/opt/$SERVICE_ACCT.json \
+    -v $(pwd)/anthos-lab-sa.json:/opt/anthos-lab-sa.json \
     anthos-lab
 fi
 
