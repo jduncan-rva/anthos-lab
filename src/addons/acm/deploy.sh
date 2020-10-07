@@ -64,7 +64,7 @@ configure_git
 deploy_repo
 
 echo -e "${OC}  * Initializing $REPO_DIR as ACM repository${NC}"
-/opt/nomos init --path=$FULL_REPO
+nomos init --path=$FULL_REPO
 
 echo -e "${OC}  * Committing ACM changes to git repository${NC}"
 git -C $FULL_REPO add . 

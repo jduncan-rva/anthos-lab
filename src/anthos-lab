@@ -38,7 +38,7 @@ NC='\033[0m'
 function prep {
 
   # authenticate via service account
-  if [ $ACTION -eq 'deploy' ];then
+  if [ $ACTION == 'deploy' ];then
     echo -e "\n\n${HC}------------------- DEPLOY --------------------${NC}\n"
   else 
     echo -e "\n\n${HC}------------------- CLEANUP --------------------${NC}\n"

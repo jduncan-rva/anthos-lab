@@ -24,5 +24,5 @@ for cluster in $CLUSTERS;do
   kubectl create namespace istio-system
 
   echo -e "${OC}  * Registering GKE cluster with Anthos Hub - $cluster ${NC}"
-  gcloud container hub memberships register $cluster --project=$PROJECT --gke-uri=https://container.googleapis.com/projects/$PROJECT/locations/$REGION/clusters/$cluster --service-account-key-file=$SERVICE_ACCT.json
+  gcloud container hub memberships register $cluster --project=$PROJECT --gke-uri=https://container.googleapis.com/projects/$PROJECT/locations/$REGION/clusters/$cluster --service-account-key-file=anthos-lab-sa.json
 done
