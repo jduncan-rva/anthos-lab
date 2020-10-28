@@ -11,16 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# used to cleanup artifacts created by ASM deployment
 
-# config-management.yaml
+echo -e "\n\n${HC}------------------- ASM CLEANUP --------------------${NC}\n"
 
-apiVersion: configmanagement.gke.io/v1
-kind: ConfigManagement
-metadata:
-  name: config-management
-spec:
-  # clusterName is required and must be unique among all managed clusters
-  clusterName: CLUSTER
-  git:
-    syncRepo: https://source.developers.google.com/p/PROJECT/r/REPO_NAME
-    secretType: gcenode
+echo -e "${OC}  * Complete ${NC}"

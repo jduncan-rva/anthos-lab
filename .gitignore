@@ -1,4 +1,4 @@
-*-sa.json
+*-sa*.json
 deploy/asm/
 istio*
 config-management-operator.yaml
@@ -9,3 +9,4 @@ clusters.config
 cfg/*.config
 anthos-lab-acm/
 cfg/default.config
+default.config

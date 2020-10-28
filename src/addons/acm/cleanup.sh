@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# used to cleanup artifacts created by ASM deployment
-LOG_PREFIX="ASM_CLEANUP"
+# cleans up artifacts created in GCP and on the filesystem to deploy ACM
 
-echo "$LOG_PREFIX: Cleaning up ASM filesystem artifacts"
-rm -rf $DEPLOY_DIR/istio-$ASM_VER
-rm -f $DEPLOY_DIR/istio-$ASM_VER-linux-amd64.tar.gz.1.sig
-rm -f $DEPLOY_DIR/istio-$ASM_VER-linux-amd64.tar.gz
-rm -rf $DEPLOY_DIR/asm 
+echo -e "\n\n${HC}------------------- ACM CLEANUP --------------------${NC}\n"
+
+echo -e "${OC}  * Cleaning up Filesystem Resources ${NC}"
+
+rm -rf $HOME/$REPO_DIR
+
+echo -e "${OC}  * Cleaning up GCP Resources ${NC}"
+
+gcloud source repos delete $REPO_NAME -q
+gcloud projects remove-iam-policy-binding $PROJECT --member serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com --role roles/source.reader
+
+echo -e "${OC}  * Complete ${NC}"

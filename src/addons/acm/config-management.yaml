@@ -11,16 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# cleans up artifacts created in GCP and on the filesystem to deploy ACM
-LOG_PREFIX="CLEANUP_ACM"
 
-echo "$LOG_PREFIX: Cleaning up ACM filesystem artifacts"
-rm -rf $REPO_DIR
-rm -f $DEPLOY_DIR/config-management-operator.yaml
-rm -f $DEPLOY_DIR/config-management-$cluster.yaml
-rm -rf $DEPLOY_DIR/nomos
+# config-management.yaml
 
-echo "$LOG_PREFIX: Cleaning up ACM GCP artifacts"
-gcloud source repos delete $REPO_NAME -q
-gcloud projects remove-iam-policy-binding $PROJECT --member serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com --role roles/source.reader
+apiVersion: configmanagement.gke.io/v1
+kind: ConfigManagement
+metadata:
+  name: anthos-lab-cluster
+spec:
+  # clusterName is required and must be unique among all managed clusters
+  clusterName: CLUSTER
+  git:
+    syncRepo: https://source.developers.google.com/p/PROJECT/r/REPO_NAME
+    syncBranch: master
+    secretType: gcenode

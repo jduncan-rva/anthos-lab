@@ -1,5 +1,8 @@
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:latest
-COPY cfg /opt/cfg 
-COPY addons/ /opt/addons 
-COPY anthos-lab /opt/anthos-lab
-CMD ["/opt/anthos-lab", "deploy"]
+# FROM gcr.io/google.com/cloudsdktool/cloud-sdk:latest
+FROM google/cloud-sdk:311.0.0-alpine
+RUN gcloud components install nomos kpt beta kubectl && gcloud components remove bq && rm -rf $(find google-cloud-sdk/ -regex ".*/__pycache__") && rm -rf google-cloud-sdk/.install/.backup
+RUN apk add openssl
+COPY src/addons/ /opt/addons
+COPY src/anthos-lab /opt/anthos-lab
+WORKDIR /opt
+CMD [ "/opt/anthos-lab", "$ACTION" ] 

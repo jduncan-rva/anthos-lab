@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # 
 # Copyright 2020 Google LLC
 #
@@ -21,33 +21,45 @@
 #      - bookinfo deploy with SLO/SLI configs (new addon that requires ASM)
 
 # valid options[cleanup|deploy]
-ACTION=$1
+# the option is defined in $ACTION - which is set when the container 
+# is started by the docker command.
+# 
+# additional options and configuration parmeters are set in the default.config # file that is also passed into the container via an --env-file option 
+
+# header color 
+HC='\033[0;32m'
+# output color
+OC='\033[0;34m'
+# error color
+EC='\033[1;31m'
+# turn off forced color
+NC='\033[0m'
 
 function prep {
-  source cfg/default.config
+
+  # authenticate via service account
+  if [ $ACTION == 'deploy' ];then
+    echo -e "\n\n${HC}------------------- DEPLOY --------------------${NC}\n"
+  else 
+    echo -e "\n\n${HC}------------------- CLEANUP --------------------${NC}\n"
+  fi
+  echo -e "${OC}  * Logging in with Service Account anthos-lab-sa${NC}"
+  gcloud auth activate-service-account --key-file=/opt/anthos-lab-sa.json
 
   # set gcloud variables
-  echo "$FUNCNAME: Setting gcloud information Project and Region"
+  echo -e "${OC}  * Setting Project and Region ${NC}"
   gcloud config set project $PROJECT 
   gcloud config set compute/zone $REGION
 
   # Setting a few additional variables
-  echo "$FUNCNAME: Setting additional variables"
+  echo -e "${OC}  * Setting additional variables ${NC}"
   PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
   WORKLOAD_POOL=$PROJECT.svc.id.goog
   MESH_ID="proj-$PROJECT_NUMBER"
-  REPO_NAME=anthos-lab-acm
-  REPO_DIR=$HOME/$REPO_NAME
   DEPLOY_DIR=$PWD/deploy
   ADDONS_DIR=$PWD/addons
 
-  # Read in cluster list
-  echo "$FUNCNAME: Reading in cluster list"
-  CLUSTERS=$(<$CLUSTER_LIST)
-  for cluster in ${CLUSTERS[@]}
-  do
-    echo "Cluster: $cluster"
-  done
+  echo -e "${OC}  * Lab Prep Complete. Moving on to $ACTION ${NC}"
 }
 
 function action {
@@ -56,7 +68,7 @@ function action {
     source $ADDONS_DIR/anthos/$ACTION.sh
   fi
   # then apply the addons, or clean them up first
-  for addon in ${ADDONS[@]};do
+  for addon in asm acm;do
     source $ADDONS_DIR/$addon/$ACTION.sh
   done
   # if it's a cleanup, we clean up Anthos last

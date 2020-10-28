@@ -1,5 +1,7 @@
 # anthos-lab
 
+**NOTE: This is out of date and will be updated ASAP with proper workflows**
+
 A simple tool to deploy Anthos deployments with ASM. Built with `bash` and
 leveraging a simple plugin architecture, it's
 easy to read and extend.
